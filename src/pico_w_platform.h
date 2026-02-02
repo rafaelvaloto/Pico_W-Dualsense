@@ -234,8 +234,10 @@ namespace HardwarePlatform {
     static void init_bluetooth() {
         l2cap_init();
         gap_ssp_set_enable(1);
-        gap_set_security_level(LEVEL_2);
+        gap_ssp_set_io_capability(1);
+        // gap_set_security_level(LEVEL_0);
 
+        // if set, BTstack will respond to io capability request using authentication requirement
         hci_event_callback.callback = &PicoW_PlatformPolicy::packet_handler;
         hci_add_event_handler(&hci_event_callback);
 
