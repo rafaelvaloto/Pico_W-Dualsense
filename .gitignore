@@ -1,0 +1,34 @@
+# Prerequisites
+*.swp
+*~
+*.bak
+
+# Build directories
+cmake-build-*/
+build/
+bin/
+lib/
+
+# Pico SDK / BTstack generated files
+*.uf2
+*.elf
+*.map
+*.bin
+*.hex
+*.dis
+
+# IDE - CLion / VSCode
+.idea/
+.vscode/
+cmake-build-debug/
+cmake-build-release/
+*.iws
+*.iml
+*.ipr
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Project specific
+!/lib/Gamepad-Core/
