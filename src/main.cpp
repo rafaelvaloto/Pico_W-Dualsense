@@ -37,11 +37,10 @@ void PrintControlsHelper()
 
 int main() {
     stdio_init_all();
-    sleep_ms(2000); // Wait for USB serial
 
     printf("\n");
     printf("========================================\n");
-    printf("   PICO W - DESCOBERTA BLUETOOTH\n");
+    printf("   PICO W - BLUETOOTH DISCOVERY\n");
     printf("========================================\n");
 
     // Initialize CYW43 (Bluetooth/WiFi chip)
@@ -49,27 +48,47 @@ int main() {
         printf("ERROR: Failed to initialize CYW43\n");
         return -1;
     }
-    printf("Hardware initialized OK\n");
 
-    // Register hardware implementation for GamepadCore
+
+    printf("Hardware initialized OK\n");
     auto HardwareInfo = std::make_unique<HardwarePlatform::PicoW_Platform>();
+    IPlatformHardwareInfo::SetInstance(std::move(HardwareInfo));
     if (!HardwarePlatform::Registry) {
         HardwarePlatform::Registry = std::make_unique<PicoW_DeviceRegistry::PicoW_Registry>();
     }
-    IPlatformHardwareInfo::SetInstance(std::move(HardwareInfo));
-
-    HardwarePlatform::init_bluetooth();
-    HardwarePlatform::Registry->PlugAndPlay(2.f);
-    stdio_init_all();
-
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-    sleep_ms(500);
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
     PrintControlsHelper();
-    printf("looping OK\n");
+    HardwarePlatform::init_bluetooth();
 
-    while(true) {}
-    printf("saiu do loop...");
+    l2cap_init();
+    hci_event_callback.callback = HardwarePlatform::PicoW_PlatformPolicy::packet_handler;
+    hci_add_event_handler(&hci_event_callback);
+
+    // Turn on Bluetooth
+    hci_power_control(HCI_POWER_ON);
+    int blink_cnt = 0;
+    while(true) {
+        if (HardwarePlatform::Registry) {
+            HardwarePlatform::Registry->PlugAndPlay(0.01f);
+            auto* Gamepad = HardwarePlatform::Registry->GetLibrary(0);
+            if (Gamepad) {
+                Gamepad->UpdateInput(0.01f);
+                Gamepad->UpdateOutput();
+
+                FDeviceContext* Context = Gamepad->GetMutableDeviceContext();
+                if (FInputContext* Input = Context->GetInputState()) {
+                    if (Input->bCross) {
+                        printf("Cross pressed\n");
+                    }
+                }
+            }
+        }
+
+        if (blink_cnt++ % 50 == 0) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+        if (blink_cnt % 50 == 25) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+
+        sleep_ms(10);
+    }
+    // printf("saiu do loop...");
     return 0;
 }
