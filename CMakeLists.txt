@@ -46,8 +46,11 @@ pico_enable_stdio_usb(dualsense_test 1)
 pico_enable_stdio_uart(dualsense_test 0)
 pico_add_extra_outputs(dualsense_test)
 
-# Mensagem de build
+
 add_custom_command(TARGET dualsense_test POST_BUILD
-        COMMAND echo "Build complete: ${CMAKE_CURRENT_BINARY_DIR}/dualsense_test.uf2"
-        COMMENT "Binary generated successfully!"
+    COMMAND echo "Build complete: ${CMAKE_CURRENT_BINARY_DIR}/dualsense_test.elf"
+    COMMAND picotool reboot -u -f || echo "Picotool: não foi possível reiniciar para BOOTSEL"
+    COMMAND ${CMAKE_COMMAND} -E sleep 1.5
+    COMMAND picotool load -x ${CMAKE_CURRENT_BINARY_DIR}/dualsense_test.elf -f
+    COMMENT "Binário gerado. Tentando reiniciar em BOOTSEL e gravar automaticamente usando o ELF..."
 )

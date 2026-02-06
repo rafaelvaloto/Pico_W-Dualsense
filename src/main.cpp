@@ -1,39 +1,16 @@
 
-#include <cstdio>
-#include <string>
-#include <vector>
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
-#include "btstack.h"
 
 // GamepadCore headers
+#include "pico_w_btstack.h"
 #include "GCore/Interfaces/IPlatformHardwareInfo.h"
 #include "GCore/Templates/TBasicDeviceRegistry.h"
 #include "pico_w_platform.h"
+#include "pico_w_registry_policy.h"
 
-extern "C" void sm_init(void);
-
-void PrintControlsHelper()
-{
-    printf("\n=======================================================\n");
-    printf("           DUALSENSE PICO W INTEGRATION                \n");
-    printf("=======================================================\n");
-    printf(" [ FACE BUTTONS ]\n");
-    printf("   (X) Cross    : Heavy Rumble + RED Light\n");
-    printf("   (O) Circle   : Soft Rumble  + BLUE Light\n");
-    printf("   [ ] Square   : Trigger Effect: GAMECUBE (R2)\n");
-    printf("   /_\\ Triangle : Stop All\n");
-    printf("-------------------------------------------------------\n");
-    printf(" [ D-PADS & SHOULDERS ]\n");
-    printf("   [L1]    : Trigger Effect: Gallop (L2)\n");
-    printf("   [R1]    : Trigger Effect: Machine (R2)\n");
-    printf("   [UP]    : Trigger Effect: Feedback (Rigid)\n");
-    printf("   [DOWN]  : Trigger Effect: Bow (Tension)\n");
-    printf("   [LEFT]  : Trigger Effect: Weapon (Semi)\n");
-    printf("   [RIGHT] : Trigger Effect: Automatic Gun (Buzz)\n");
-    printf("=======================================================\n");
-    printf(" Waiting for input...\n\n");
-}
+using pico_platform = GamepadCore::TGenericHardwareInfo<pico_w_platform_policy>;
+using pico_registry = GamepadCore::TBasicDeviceRegistry<pico_w_registry_policy>;
 
 int main() {
     stdio_init_all();
@@ -49,46 +26,40 @@ int main() {
         return -1;
     }
 
-
     printf("Hardware initialized OK\n");
-    auto HardwareInfo = std::make_unique<HardwarePlatform::PicoW_Platform>();
+    auto HardwareInfo = std::make_unique<pico_platform>();
     IPlatformHardwareInfo::SetInstance(std::move(HardwareInfo));
-    if (!HardwarePlatform::Registry) {
-        HardwarePlatform::Registry = std::make_unique<PicoW_DeviceRegistry::PicoW_Registry>();
-    }
 
-    PrintControlsHelper();
-    HardwarePlatform::init_bluetooth();
+    printf("Registry devices initialized OK\n");
+    auto registry = std::make_unique<pico_registry>();
 
-    l2cap_init();
-    hci_event_callback.callback = HardwarePlatform::PicoW_PlatformPolicy::packet_handler;
-    hci_add_event_handler(&hci_event_callback);
+    FDeviceContext Context = {};
+    Context.ConnectionType = EDSDeviceConnection::Bluetooth;
+    Context.IsConnected = true;
+    Context.DeviceType = EDSDeviceType::DualSense;
+    Context.Path = "Bluetooth";
 
-    // Turn on Bluetooth
-    hci_power_control(HCI_POWER_ON);
+    registry->CreateDevice(Context);
+    sleep_ms(100);
+
+    init_bluetooth();
+
     int blink_cnt = 0;
-    while(true) {
-        if (HardwarePlatform::Registry) {
-            HardwarePlatform::Registry->PlugAndPlay(0.01f);
-            auto* Gamepad = HardwarePlatform::Registry->GetLibrary(0);
-            if (Gamepad) {
-                Gamepad->UpdateInput(0.01f);
-                Gamepad->UpdateOutput();
-
-                FDeviceContext* Context = Gamepad->GetMutableDeviceContext();
-                if (FInputContext* Input = Context->GetInputState()) {
-                    if (Input->bCross) {
-                        printf("Cross pressed\n");
-                    }
-                }
-            }
-        }
+    bool is_running = true;
+    while(is_running) {
+        #if PICO_CYW43_ARCH_POLL
+        cyw43_arch_poll();
+        #endif
 
         if (blink_cnt++ % 50 == 0) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         if (blink_cnt % 50 == 25) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
-        sleep_ms(10);
+        ISonyGamepad* Gamepad = registry->GetLibrary(0);
+        if (!Gamepad) {
+            is_running = false;
+        }
+        sleep_ms(16);
     }
-    // printf("saiu do loop...");
+
     return 0;
 }
