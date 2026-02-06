@@ -2,15 +2,23 @@
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 
+// Forward declarations for btstack
+#include <memory>
+namespace GamepadCore {
+    template<typename DeviceRegistryPolicy> class TBasicDeviceRegistry;
+}
+#include "pico_w_registry_policy.h"
+using pico_registry = GamepadCore::TBasicDeviceRegistry<pico_w_registry_policy>;
+std::unique_ptr<pico_registry> registry;
+
 // GamepadCore headers
 #include "pico_w_btstack.h"
 #include "GCore/Interfaces/IPlatformHardwareInfo.h"
 #include "GCore/Templates/TBasicDeviceRegistry.h"
 #include "pico_w_platform.h"
-#include "pico_w_registry_policy.h"
+#include "GCore/Interfaces/ISonyGamepad.h"
 
 using pico_platform = GamepadCore::TGenericHardwareInfo<pico_w_platform_policy>;
-using pico_registry = GamepadCore::TBasicDeviceRegistry<pico_w_registry_policy>;
 
 int main() {
     stdio_init_all();
@@ -31,7 +39,7 @@ int main() {
     IPlatformHardwareInfo::SetInstance(std::move(HardwareInfo));
 
     printf("Registry devices initialized OK\n");
-    auto registry = std::make_unique<pico_registry>();
+    registry = std::make_unique<pico_registry>();
 
     FDeviceContext Context = {};
     Context.ConnectionType = EDSDeviceConnection::Bluetooth;
@@ -55,7 +63,12 @@ int main() {
         if (blink_cnt % 50 == 25) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
         ISonyGamepad* Gamepad = registry->GetLibrary(0);
-        if (!Gamepad) {
+        if (Gamepad) {
+            // Se o DualSense estiver pronto, processa entrada e saída
+            if (l2cap_cid_interrupt != 0) {
+                Gamepad->UpdateInput(0.016f);
+            }
+        } else {
             is_running = false;
         }
         sleep_ms(16);

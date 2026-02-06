@@ -13,6 +13,19 @@
 #include "pico_w_flash_ptr.h"
 #include "classic/hid_host.h"
 #include "classic/sdp_server.h"
+#include "GCore/Interfaces/ISonyGamepad.h"
+#include "GCore/Interfaces/IDeviceRegistry.h"
+#include <vector>
+
+// Forward declarations
+namespace GamepadCore {
+    template<typename DeviceRegistryPolicy> class TBasicDeviceRegistry;
+}
+#include "pico_w_registry_policy.h"
+using pico_registry = GamepadCore::TBasicDeviceRegistry<pico_w_registry_policy>;
+extern std::unique_ptr<pico_registry> registry;
+
+#include "GCore/Templates/TBasicDeviceRegistry.h"
 
 // Estado da conexão
 static uint16_t l2cap_cid_control = 0;
@@ -90,6 +103,13 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
 
     switch (hci_event_packet_get_type(packet)) {
         case L2CAP_EVENT_CHANNEL_OPENED: {
+            uint16_t out_mtu = l2cap_event_channel_opened_get_remote_mtu(packet);
+            printf("[L2CAP] Canal aberto. MTU de saída: %u\n", out_mtu);
+
+            if (out_mtu < 78) {
+                printf("[AVISO] MTU muito baixo para Report 0x31!\n");
+            }
+
             uint8_t status = l2cap_event_channel_opened_get_status(packet);
             uint16_t psm = l2cap_event_channel_opened_get_psm(packet);
             uint16_t cid = l2cap_event_channel_opened_get_local_cid(packet);
@@ -112,11 +132,22 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                     l2cap_create_channel(&l2cap_packet_handler, addr, PSM_HID_INTERRUPT, 0xffff, &l2cap_cid_interrupt);
                 }
             } else if (psm == PSM_HID_INTERRUPT) {
-                l2cap_cid_interrupt = cid;
                 printf("[L2CAP] HID Interrupt conectado.\n");
                 printf("========================================\n");
                 printf("   DualSense PRONTO PARA USO!\n");
                 printf("========================================\n");
+
+                // Solicita report 0x31 inicializando a biblioteca
+                if (registry) {
+                    ISonyGamepad* Gamepad = registry->GetLibrary(0);
+                    if (Gamepad) {
+                        FDeviceContext* Context = Gamepad->GetMutableDeviceContext();
+                        if (Context) {
+                            printf("[BT] Enviando Report 0x31 de inicialização...\n");
+                            Gamepad->UpdateOutput();
+                        }
+                    }
+                }
             }
             break;
         }
@@ -301,8 +332,8 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
         case HCI_EVENT_PIN_CODE_REQUEST: {
             bd_addr_t addr;
             hci_event_pin_code_request_get_bd_addr(packet, addr);
-            printf("[HCI] PIN solicitado. Enviando 0000...\n");
-            hci_send_cmd(&hci_pin_code_request_reply, addr, 4, "0000");
+            printf("[HCI] PIN solicitado. Enviando 0002...\n");
+            hci_send_cmd(&hci_pin_code_request_reply, addr, 4, "0002");
             break;
         }
 
@@ -381,18 +412,18 @@ static void init_bluetooth() {
     printf("[BT] Inicializando Bluetooth Stack...\n");
 
     reset_connection_state();
-
     l2cap_init();
+
 
     // SSP (Secure Simple Pairing)
     gap_ssp_set_enable(true);
     gap_secure_connections_enable(true);
-    gap_ssp_set_io_capability(SSP_IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
+    gap_ssp_set_io_capability(SSP_IO_CAPABILITY_DISPLAY_YES_NO);
     gap_ssp_set_authentication_requirement(SSP_IO_AUTHREQ_MITM_PROTECTION_NOT_REQUIRED_GENERAL_BONDING);
 
     // Registra serviços L2CAP para aceitar conexões incoming
-    l2cap_register_service(&l2cap_packet_handler, PSM_HID_CONTROL, 0xffff, LEVEL_0);
-    l2cap_register_service(&l2cap_packet_handler, PSM_HID_INTERRUPT, 0xffff, LEVEL_2);
+    // l2cap_register_service(&l2cap_packet_handler, PSM_HID_CONTROL, 0xffff, LEVEL_4);
+    // l2cap_register_service(&l2cap_packet_handler, PSM_HID_INTERRUPT, 0xffff, LEVEL_4);
 
     // Permite conexões
     gap_connectable_control(1);
