@@ -92,7 +92,7 @@ Download the minimalist version of **Gamepad-Core** (without unnecessary submodu
 
 ```bash
 # Clone to your lib folder
-git clone --depth 1 https://github.com/rafaelvaloto/Gamepad-Core.git lib/Gamepad-Core
+git clone --depth 1 https://github.com/rafaelvaloto/Gamepad-Core.git your-manage-dependencies/Gamepad-Core
 ```
 
 ### 3. Export for Embedded Systems
@@ -100,9 +100,9 @@ git clone --depth 1 https://github.com/rafaelvaloto/Gamepad-Core.git lib/Gamepad
 Navigate to the Gamepad-Core folder and run the export script to prepare files for microcontroller use:
 
 ```bash
-cd lib/Gamepad-Core
-./export_micro.sh
-cd ../..
+cd your-project-pico-w/libs
+./your-manage-dependencies/Gamepad-Core/export_micro.sh .
+
 ```
 
 This organizes the necessary headers and sources for embedded environments.
@@ -171,16 +171,42 @@ Data is copied directly to the `Context->Buffer` of Gamepad-Core, which handles 
 ### Main Loop Architecture
 
 ```cpp
-while (true) {
-    // Gamepad-Core handles connection management and input updates
-    gamepadContext.PlugAndPlay();
-    gamepadContext.Update();
-    
-    // Your application logic here
-    ProcessControllerInput();
-    
-    sleep_ms(1);
-}
+    auto HardwareInfo = std::make_unique<pico_platform>();
+    IPlatformHardwareInfo::SetInstance(std::move(HardwareInfo));
+    printf("Hardware initialized OK\n");
+
+    using namespace policy_device;
+    initialize_device();
+    auto& registry = get_instance();
+    printf("Device initialized OK\n");
+
+    init_bluetooth();
+    printf("Bluetooth initialized OK\n");
+
+    int blink_cnt = 0;
+    while(true) {
+        if (blink_cnt++ % 50 == 0) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+        if (blink_cnt % 50 == 25) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+
+        if (auto* gamepad = registry.GetLibrary(0)) {
+            gamepad->UpdateInput(0.016f);
+            FInputContext* input = gamepad->GetMutableDeviceContext()->GetInputState();
+            if (input->bCross) {
+                cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+                printf("Cross button pressed\n");
+            } else if (input->bCircle) {
+                cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+                printf("Circle button pressed\n");
+            } else if (input->bSquare) {
+                cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+                printf("Square button pressed\n");
+            } else if (input->bTriangle) {
+                cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+                printf("Triangle button pressed\n");
+            }
+        }
+        sleep_ms(16);
+    }
 ```
 
 Library processing (PlugAndPlay and Updates) occurs in the main loop, ensuring operations requiring mutexes or delays don't block the Bluetooth interrupt handler.
