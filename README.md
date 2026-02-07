@@ -43,20 +43,42 @@ This firmware was created to **stress-test the portability** of the Gamepad-Core
     - Gyroscope and accelerometer data
     - Touchpad input
     - Battery status
+- **Complete Output Features**:
+  - 💡 **LED Control**: Lightbar colors and player LED indicators
+  - 📳 **Rumble/Haptics**: Vibration motor control (soft and heavy)
+  - 🎚️ **Adaptive Triggers**: Full trigger effect system
+    - Resistance modes (Feedback, Weapon, Vibration)
+    - Dynamic tension effects (Bow, Gallop, Machine)
+    - Weapon simulation (GameCube, Semi-Automatic, Automatic)
 - **Plug-and-Play Integration**: Powered by Gamepad-Core's abstraction layer
 
-### 🚧 Coming Soon (Easy to Implement)
+### 🎮 Interactive Test Demo
 
-Output features are **ready to implement** thanks to Gamepad-Core's complete support:
+The firmware includes a comprehensive test suite demonstrating all DualSense features:
 
-- 💡 **LED Control**: Lightbar colors and player LED indicators
-- 📳 **Rumble/Haptics**: Vibration motor control
-- 🎚️ **Adaptive Triggers**: Full trigger effect system
-  - Resistance modes
-  - Vibration feedback
-  - Weapon effects (trigger, machine gun, bow, etc.)
+```
+=======================================================
+           DUALSENSE INTEGRATION TEST                  
+=======================================================
 
-> **Note**: The Gamepad-Core library already includes all the buffers and APIs needed for these features. Implementation is straightforward—simply send the output buffer via Bluetooth.
+ [ FACE BUTTONS ]
+   (X) Cross    : Heavy Rumble + RED Light
+   (O) Circle   : Soft Rumble  + YELLOW Light
+   [ ] Square   : Trigger Effect: GAMECUBE (R2)
+   /_\ Triangle : Stop All
+
+-------------------------------------------------------
+
+ [ D-PADS & SHOULDERS ]
+   [L1]    : Trigger Effect: Gallop (L2)
+   [R1]    : Trigger Effect: Machine (R2)
+   [UP]    : Trigger Effect: Feedback (Rigid)
+   [DOWN]  : Trigger Effect: Bow (Tension)
+   [LEFT]  : Trigger Effect: Weapon (Semi)
+   [RIGHT] : Trigger Effect: Automatic Gun (Buzz)
+
+=======================================================
+```
 
 ---
 
@@ -88,28 +110,38 @@ cd Pico_W-Dualsense
 
 ### 2. Download Gamepad-Core (Minimalist Version)
 
-Download the minimalist version of **Gamepad-Core** (without unnecessary submodules) to your dependency folder:
+Clone the minimalist version of **Gamepad-Core** to a directory **outside** your Pico project:
 
 ```bash
-# Clone to your lib folder
-git clone --depth 1 https://github.com/rafaelvaloto/Gamepad-Core.git your-manage-dependencies/Gamepad-Core
+# Clone to a separate dependencies folder (not inside the Pico project)
+cd ..
+git clone --depth 1 https://github.com/rafaelvaloto/Gamepad-Core.git
+```
+
+Your directory structure should look like this:
+```
+parent-folder/
+├── Pico_W-Dualsense/        # Your Pico project
+└── Gamepad-Core/            # Gamepad-Core library (separate)
 ```
 
 ### 3. Export for Embedded Systems
 
-Navigate to the Gamepad-Core folder and run the export script to prepare files for microcontroller use:
+Navigate to the Gamepad-Core folder and run the export script, pointing it to your Pico project's `libs` folder:
 
 ```bash
-cd your-project-pico-w/libs
-/your-manage-dependencies/Gamepad-Core/export_micro.sh .
-
+cd Gamepad-Core
+./export_micro.sh ../Pico_W-Dualsense/libs
 ```
 
-This organizes the necessary headers and sources for embedded environments.
+This script will:
+- Copy necessary headers and source files to your Pico project
+- Organize files for embedded compilation
+- Remove unnecessary dependencies for microcontroller use
 
 ### 4. Configure SDK Integration (`gc_config.h`)
 
-Create a `gc_config.h` file at the root of your project to map Gamepad-Core's internal functions to Pico SDK functions:
+Create a `gc_config.h` file at the root of your Pico project to map Gamepad-Core's internal functions to Pico SDK functions:
 
 ```cpp name=gc_config.h
 //
@@ -129,6 +161,7 @@ Create a `gc_config.h` file at the root of your project to map Gamepad-Core's in
 ### 5. Build the Firmware
 
 ```bash
+cd Pico_W-Dualsense
 mkdir build && cd build
 cmake ..
 make
@@ -163,10 +196,18 @@ The firmware automatically configures the DualSense to use **Report ID 0x31**, w
 ### Integration with BTstack
 
 The `packet_handler` in `src/pico_w_platform.h` processes L2CAP packets from the controller:
-- **`0x01` packets**: Read with offset 1 (basic input)
 - **`0x31` packets**: Read with offset 2 (extended input)
 
 Data is copied directly to the `Context->Buffer` of Gamepad-Core, which handles all protocol decoding and abstraction.
+
+### Output Features via Bluetooth
+
+The firmware uses Gamepad-Core's output buffer system to send commands back to the DualSense:
+- **LED commands**: Set lightbar RGB colors and player indicators
+- **Rumble commands**: Control left/right motors independently
+- **Trigger effects**: Configure adaptive triggers with various resistance patterns
+
+All output features use the same `0x31` report format for bidirectional communication.
 
 ### Main Loop Architecture
 
@@ -250,36 +291,38 @@ The firmware is optimized for the Pico W's limited resources:
 - Low latency input reading (~1-2ms polling)
 - Stable Bluetooth connection with minimal packet loss
 - Non-blocking architecture prevents stalling
+- Output feature latency: ~8-16ms (Bluetooth Classic limitation)
 
 ### Supported DualSense Features
 
 | Feature | Status |
 |---------|--------|
-| Buttons (×17) | ✅ Implemented |
-| Analog Sticks (L/R) | ✅ Implemented |
-| Triggers (L2/R2) | ✅ Implemented |
-| D-Pad | ✅ Implemented |
-| Gyroscope | ✅ Implemented |
-| Accelerometer | ✅ Implemented |
-| Touchpad | ✅ Implemented |
-| Battery Status | ✅ Implemented |
-| Lightbar RGB | 🚧 Ready (not sent) |
-| Player LED | 🚧 Ready (not sent) |
-| Rumble Motors | 🚧 Ready (not sent) |
-| Adaptive Triggers | 🚧 Ready (not sent) |
+| Buttons (×17) | ✅ Fully Working |
+| Analog Sticks (L/R) | ✅ Fully Working |
+| Triggers (L2/R2) | ✅ Fully Working |
+| D-Pad | ✅ Fully Working |
+| Gyroscope | ✅ Fully Working |
+| Accelerometer | ✅ Fully Working |
+| Touchpad | ✅ Fully Working |
+| Battery Status | ✅ Fully Working |
+| Lightbar RGB | ✅ Fully Working |
+| Player LED | ✅ Fully Working |
+| Rumble Motors | ✅ Fully Working |
+| Adaptive Triggers | ✅ Fully Working |
 | Audio | ❌ Not planned |
 
-> **Legend**: ✅ = Fully working | 🚧 = Implemented in Gamepad-Core, needs Bluetooth send | ❌ = Not implemented
+> **Legend**: ✅ = Fully working | ❌ = Not implemented
 
 ---
 
 ## 🤝 Contributing
 
 Contributions are welcome! Whether it's:
-- Implementing output features (LEDs, rumble, triggers)
 - Optimizing performance
-- Adding support for other controllers
+- Adding support for other controllers (DualShock 4, Nintendo Pro, etc.)
 - Improving documentation
+- Adding new trigger effects
+- Implementing audio support
 
 Feel free to open issues or submit pull requests.
 
