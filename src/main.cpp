@@ -52,9 +52,8 @@ int main() {
 
     int blink_cnt = 0;
     int unique_send = 0;
+    int reset_bt_send = 0;
     while(true) {
-        if (blink_cnt++ % 50 == 0) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-        if (blink_cnt % 50 == 25) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
 
         if (auto* gamepad = registry.GetLibrary(0)) {
             if (gamepad->IsConnected()) {
@@ -67,39 +66,76 @@ int main() {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("Cross button pressed\n");
 
+                    if (reset_bt_send == 0) { // l2cap_send to set lightbar to white and vibrate
+                        unique_send = 1;
+                        reset_bt_send = 1;
+
+                        printf("Resetting bluetooth features...\n");
+                        gamepad->GetMutableDeviceContext()->Output.Feature = {0xFF, 0xFF, 0x00, 0x00};
+                        gamepad->SetLightbar({0, 0, 0, 0});
+                        gamepad->UpdateOutput();
+                        sleep_ms(400);
+                        gamepad->GetMutableDeviceContext()->Output.Feature = {0x57, 0xFF, 0x00, 0x00};
+                        gamepad->SetLightbar({255, 255, 255, 0});
+                        gamepad->SetPlayerLed(EDSPlayer::One, 0xff);
+                        gamepad->UpdateOutput();
+                        sleep_ms(400);
+                        printf("Complete configuration features...\n");
+                    }
+
                     if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
                         unique_send = 1;
-                        gamepad->SetLightbar({0xff, 0xff, 0xff});
+                        gamepad->SetLightbar({0xff, 0, 0, 0});
                         gamepad->SetVibration(100, 0);
                         gamepad->UpdateOutput();
                     }
                 } else if (input->bCircle) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("Circle button pressed\n");
+
+                    if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
+                        unique_send = 1;
+                        gamepad->SetLightbar({0xff, 0xff, 0, 0});
+                        gamepad->SetVibration(0, 50);
+                        gamepad->UpdateOutput();
+                    }
                 } else if (input->bSquare) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("Square button pressed\n");
                 } else if (input->bTriangle) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("Triangle button pressed\n");
+
+                    if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
+                        unique_send = 1;
+                        gamepad->SetLightbar({0, 255, 0});
+                        gamepad->GetIGamepadTrigger()->StopTrigger(EDSGamepadHand::AnyHand);
+                        gamepad->UpdateOutput();
+                    }
                 }  else if (input->bLeftShoulder) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("L1 button pressed:\n");
+
+                    if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
+                        unique_send = 1;
+                        gamepad->GetIGamepadTrigger()->SetCustomTrigger(EDSGamepadHand::Left, {});
+                        gamepad->UpdateOutput();
+                    }
                 } else if (input->bRightShoulder) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("R1 button pressed\n");
+
+                    if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
+                        unique_send = 1;
+                        gamepad->GetIGamepadTrigger()->SetCustomTrigger(EDSGamepadHand::Right, {});
+                        gamepad->UpdateOutput();
+                    }
                 } else if (input->bLeftStick) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("L3 button pressed\n");
                 } else if (input->bRightStick) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("R3 button pressed\n");
-                } else if (input->LeftTriggerAnalog > 0.0f) {
-                    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-                    printf("L2: %f\n", input->LeftTriggerAnalog);
-                } else if (input->RightTriggerAnalog > 0.0f) {
-                    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-                    printf("R2: %f\n", input->RightTriggerAnalog);
                 } else if (abs(input->LeftAnalog.X) > 0.1f || abs(input->LeftAnalog.Y) > 0.1f) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("Left Analog: X %f, Y %f \n", input->LeftAnalog.X, input->LeftAnalog.Y);
@@ -111,9 +147,23 @@ int main() {
                     printf("Fringer count: %d \n", (int)input->TouchFingerCount);
                     printf("Touchpad: X %f, Y %f \n", input->TouchPosition.X, input->TouchPosition.Y);
                 }
+            }
 
+            if (blink_cnt % 50 == 25) {
+                unique_send = 0;
+                gamepad->SetVibration(0, 0);
             }
         }
+
+
+        if (blink_cnt++ % 50 == 0) {
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+        }
+
+        if (blink_cnt % 50 == 25) {
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+        }
+
         sleep_ms(16);
     }
     return 0;
