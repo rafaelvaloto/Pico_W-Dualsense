@@ -133,6 +133,7 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                 printf("========================================\n");
                 printf("   DualSense READY TO USE!\n");
                 printf("========================================\n");
+                printf("Press start and select to see command options.\n");
 
                 uint8_t get_feature[41] = {
                     0x43,
