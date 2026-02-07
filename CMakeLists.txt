@@ -14,6 +14,7 @@ pico_sdk_init()
 add_compile_definitions(
         GAMEPAD_CORE_EMBEDDED=1
         GAMEPAD_CORE_EXTERNAL_SO_DEFINES="gc_config.h"
+        PICO_MALLOC_PANIC=0
 )
 
 add_subdirectory(lib/Gamepad-Core/Source)

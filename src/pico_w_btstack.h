@@ -3,33 +3,22 @@
 // Created by rafaelvaloto on 04/02/2026.
 //
 #pragma once
+#include "GCore/Interfaces/ISonyGamepad.h"
 
 #include <cstdint>
 #include <cstdio>
-
 #include "bluetooth.h"
 #include "btstack_event.h"
 #include "l2cap.h"
 #include "pico_w_flash_ptr.h"
 #include "classic/hid_host.h"
 #include "classic/sdp_server.h"
-#include "GCore/Interfaces/ISonyGamepad.h"
-#include "GCore/Interfaces/IDeviceRegistry.h"
-#include <vector>
-
-// Forward declarations
-namespace GamepadCore {
-    template<typename DeviceRegistryPolicy> class TBasicDeviceRegistry;
-}
-#include "pico_w_registry_policy.h"
-using pico_registry = GamepadCore::TBasicDeviceRegistry<pico_w_registry_policy>;
-extern std::unique_ptr<pico_registry> registry;
-
-#include "GCore/Templates/TBasicDeviceRegistry.h"
 
 // Estado da conexão
+static uint16_t response_report = 0;
 static uint16_t l2cap_cid_control = 0;
 static uint16_t l2cap_cid_interrupt = 0;
+static uint16_t l2cap_cid_out_interrupt = 0;
 static bd_addr_t current_device_addr;
 static bool device_found = false;
 static bool is_pairing = false;
@@ -48,8 +37,10 @@ inline bool is_link_key_valid(const uint8_t *key) {
 }
 
 inline void reset_connection_state() {
+    response_report = 0;
     l2cap_cid_control = 0;
     l2cap_cid_interrupt = 0;
+    l2cap_cid_out_interrupt = 0;
     is_pairing = false;
     we_initiated_connection = false;
     link_key_used = false;
@@ -91,15 +82,19 @@ inline void start_pairing_inquiry() {
 
 inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
     if (packet_type == L2CAP_DATA_PACKET) {
-        if (size > 11) {
-            printf("[L2CAP] Dados recebidos! CID: 0x%04x, Tamanho: %d\n", channel, size);
-        }
+        using namespace policy_device;
+        if (size > 11 && response_report == 0) {
+            response_report = 1;
 
-        // TODO: processar dados HID aqui
+        } else if (size > 11 && response_report == 1) {
+            auto& registry = get_instance();
+            if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+                FDeviceContext* context = gamepad->GetMutableDeviceContext();
+                memcpy(context->Buffer, &packet[1], 78);
+            }
+        }
         return;
     }
-
-    if (packet_type != HCI_EVENT_PACKET) return;
 
     switch (hci_event_packet_get_type(packet)) {
         case L2CAP_EVENT_CHANNEL_OPENED: {
@@ -125,8 +120,6 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                    cid, psm, bd_addr_to_str(addr));
 
             if (psm == PSM_HID_CONTROL) {
-                l2cap_cid_control = cid;
-                // SEMPRE abre Interrupt após Control
                 if (l2cap_cid_interrupt == 0) {
                     printf("[L2CAP] HID Control conectado. Abrindo HID Interrupt...\n");
                     l2cap_create_channel(&l2cap_packet_handler, addr, PSM_HID_INTERRUPT, 0xffff, &l2cap_cid_interrupt);
@@ -137,18 +130,30 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                 printf("   DualSense PRONTO PARA USO!\n");
                 printf("========================================\n");
 
-                // Solicita report 0x31 inicializando a biblioteca
-                if (registry) {
-                    ISonyGamepad* Gamepad = registry->GetLibrary(0);
-                    if (Gamepad) {
-                        FDeviceContext* Context = Gamepad->GetMutableDeviceContext();
-                        if (Context) {
-                            printf("[BT] Enviando Report 0x31 de inicialização...\n");
-                            Gamepad->UpdateOutput();
-                        }
-                    }
-                }
+                uint8_t get_feature[41] = {
+                    0x43,
+                    0x05
+                };
+                l2cap_send(l2cap_cid_control, get_feature, 41);
             }
+            break;
+        }
+        case L2CAP_EVENT_CAN_SEND_NOW: {
+            uint8_t buff[78] = {0};
+            buff[0] = 0xa1;
+            buff[1] = 0x31;
+            buff[2] = 0x02;
+
+            auto cod = l2cap_send(l2cap_cid_interrupt, buff, 79);
+            switch (cod) {
+                case L2CAP_DATA_LEN_EXCEEDS_REMOTE_MTU:
+                    printf("L2CAP_DATA_LEN_EXCEEDS_REMOTE_MTU!\n");
+                    break;
+                case BTSTACK_ACL_BUFFERS_FULL:
+                    printf("BTSTACK_ACL_BUFFERS_FULL!\n");
+                    break;
+                default: printf("error_or_success l2cap_send %02X \n", cod);
+            };
             break;
         }
 
@@ -158,6 +163,7 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
 
             if (cid == l2cap_cid_control) l2cap_cid_control = 0;
             if (cid == l2cap_cid_interrupt) l2cap_cid_interrupt = 0;
+            if (cid == l2cap_cid_out_interrupt) l2cap_cid_out_interrupt = 0;
             break;
         }
 
@@ -410,10 +416,8 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
 
 static void init_bluetooth() {
     printf("[BT] Inicializando Bluetooth Stack...\n");
-
     reset_connection_state();
     l2cap_init();
-
 
     // SSP (Secure Simple Pairing)
     gap_ssp_set_enable(true);
@@ -422,12 +426,12 @@ static void init_bluetooth() {
     gap_ssp_set_authentication_requirement(SSP_IO_AUTHREQ_MITM_PROTECTION_NOT_REQUIRED_GENERAL_BONDING);
 
     // Registra serviços L2CAP para aceitar conexões incoming
-    // l2cap_register_service(&l2cap_packet_handler, PSM_HID_CONTROL, 0xffff, LEVEL_4);
-    // l2cap_register_service(&l2cap_packet_handler, PSM_HID_INTERRUPT, 0xffff, LEVEL_4);
+    l2cap_register_service(&l2cap_packet_handler, PSM_HID_INTERRUPT, 150, LEVEL_2);
+    l2cap_register_service(&l2cap_packet_handler, PSM_HID_CONTROL, 150, LEVEL_2);
 
     // Permite conexões
     gap_connectable_control(1);
-    gap_discoverable_control(0);
+    gap_discoverable_control(1);
 
     // Registra handlers
     hci_event_callback.callback = &hci_packet_handler;
@@ -439,4 +443,6 @@ static void init_bluetooth() {
     printf("[BT] Ligando rádio...\n");
     gap_set_allow_role_switch(HCI_ROLE_MASTER);
     hci_power_control(HCI_POWER_ON);
+
+
 }
