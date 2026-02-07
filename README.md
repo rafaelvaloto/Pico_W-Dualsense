@@ -101,7 +101,7 @@ Navigate to the Gamepad-Core folder and run the export script to prepare files f
 
 ```bash
 cd your-project-pico-w/libs
-./your-manage-dependencies/Gamepad-Core/export_micro.sh .
+/your-manage-dependencies/Gamepad-Core/export_micro.sh .
 
 ```
 
