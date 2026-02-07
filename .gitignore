@@ -7,7 +7,6 @@
 cmake-build-*/
 build/
 bin/
-lib/
 
 # Pico SDK / BTstack generated files
 *.uf2
