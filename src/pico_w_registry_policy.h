@@ -36,16 +36,3 @@ namespace policy_device {
 
 
 }
-
-
-static void initialize_device() {
-    printf("Initializing device...\n");
-    FDeviceContext Context = {};
-    Context.Path = "Bluetooth";
-    Context.IsConnected = true;
-    Context.DeviceType = EDSDeviceType::DualSense;
-    Context.ConnectionType = EDSDeviceConnection::Bluetooth;
-
-    auto& registry = policy_device::get_instance();
-    registry.CreateDevice(Context);
-}

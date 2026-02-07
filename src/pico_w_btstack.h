@@ -11,6 +11,7 @@
 #include "btstack_event.h"
 #include "l2cap.h"
 #include "pico_w_flash_ptr.h"
+#include "GImplementations/Utils/GamepadSensors.h"
 #include "classic/hid_host.h"
 #include "classic/sdp_server.h"
 
@@ -86,6 +87,13 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
         if (size > 11 && response_report == 0) {
             response_report = 1;
 
+            auto& registry = get_instance();
+            if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+                FDeviceContext* context = gamepad->GetMutableDeviceContext();
+                memcpy(context->Buffer, &packet[1], 78);
+                context->IsConnected = true;
+            }
+
         } else if (size > 11 && response_report == 1) {
             auto& registry = get_instance();
             if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
@@ -131,6 +139,17 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
                     0x05
                 };
                 l2cap_send(l2cap_cid_control, get_feature, 41);
+
+                using namespace policy_device;
+                auto& registry = get_instance();
+                if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+                    FDeviceContext* context = gamepad->GetMutableDeviceContext();
+                    using namespace FGamepadSensors;
+                    FGamepadCalibration OutCalibration;
+                    DualSenseCalibrationSensors(get_feature, OutCalibration);
+
+                    context->Calibration = OutCalibration;
+                }
             }
             break;
         }
@@ -182,9 +201,9 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
                     printf("[BT] Paired device found: %s\n", bd_addr_to_str(saved_mac));
                     printf("[BT] Waiting for controller connection...\n");
                     bd_addr_copy(current_device_addr, saved_mac);
-                    we_initiated_connection = false;  // We will wait for controller to connect
+                    we_initiated_connection = false;
                     gap_connectable_control(1);
-                    gap_discoverable_control(0);  // No need to be discoverable, already paired
+                    gap_discoverable_control(0);
                 } else {
                     start_pairing_inquiry();
                 }

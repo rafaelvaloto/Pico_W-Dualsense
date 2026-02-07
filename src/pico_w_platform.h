@@ -1,5 +1,6 @@
 #pragma once
 #include "GCore/Templates/TGenericHardwareInfo.h"
+#include "GImplementations/Utils/GamepadSensors.h"
 
 
 struct pico_w_platform_policy {
@@ -14,6 +15,7 @@ struct pico_w_platform_policy {
         return true;
     }
 
+    static void ConfigureFeature(FDeviceContext* Context) {}
     static void Read(FDeviceContext* Context) {}
     static void Detect(std::vector<FDeviceContext>& Devices) {}
     static void InvalidateHandle(FDeviceContext* Context) {}
