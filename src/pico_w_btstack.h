@@ -422,8 +422,8 @@ static void init_bluetooth() {
     gap_ssp_set_authentication_requirement(SSP_IO_AUTHREQ_MITM_PROTECTION_NOT_REQUIRED_GENERAL_BONDING);
 
     // Register L2CAP services to accept incoming connections
-    l2cap_register_service(&l2cap_packet_handler, PSM_HID_INTERRUPT, 150, LEVEL_2);
-    l2cap_register_service(&l2cap_packet_handler, PSM_HID_CONTROL, 150, LEVEL_2);
+    // l2cap_register_service(&l2cap_packet_handler, PSM_HID_INTERRUPT, 150, LEVEL_2);
+    // l2cap_register_service(&l2cap_packet_handler, PSM_HID_CONTROL, 150, LEVEL_2);
 
     // Allow connections
     gap_connectable_control(1);
