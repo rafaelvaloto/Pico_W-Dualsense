@@ -154,10 +154,15 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
             break;
         }
         case L2CAP_EVENT_CAN_SEND_NOW: {
-            uint8_t buff[78] = {0};
-            buff[0] = 0xa1;
-            buff[1] = 0x31;
-            buff[2] = 0x02;
+            using namespace policy_device;
+            auto& registry = get_instance();
+            uint8_t buff[79] = { 0xA2 };
+            if (auto gamepad = registry.GetLibrary(0)) {
+                if (gamepad->IsConnected()) {
+                    uint8_t* out = gamepad->GetMutableDeviceContext()->GetRawOutputBuffer();
+                    memcpy(&buff[1], out, 78);
+                }
+            }
 
             auto cod = l2cap_send(l2cap_cid_interrupt, buff, 79);
             switch (cod) {
@@ -175,6 +180,13 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
         case L2CAP_EVENT_CHANNEL_CLOSED: {
             uint16_t cid = l2cap_event_channel_closed_get_local_cid(packet);
             printf("[L2CAP] Close Channel 0x%04x\n", cid);
+
+            using namespace policy_device;
+            auto& registry = get_instance();
+            if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+                FDeviceContext* context = gamepad->GetMutableDeviceContext();
+                context->IsConnected = false;
+            }
 
             if (cid == l2cap_cid_control) l2cap_cid_control = 0;
             if (cid == l2cap_cid_interrupt) l2cap_cid_interrupt = 0;
@@ -389,6 +401,12 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
 
         // === DISCONNECTION ===
         case HCI_EVENT_DISCONNECTION_COMPLETE: {
+            using namespace policy_device;
+            auto& registry = get_instance();
+            if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+                FDeviceContext* context = gamepad->GetMutableDeviceContext();
+                context->IsConnected = false;
+            }
             uint8_t reason = packet[5];
             printf("[HCI] Disconnected. Reason: 0x%02x\n", reason);
             reset_connection_state();

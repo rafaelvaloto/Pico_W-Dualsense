@@ -51,6 +51,7 @@ int main() {
     printf("Bluetooth initialized OK\n");
 
     int blink_cnt = 0;
+    int unique_send = 0;
     while(true) {
         if (blink_cnt++ % 50 == 0) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         if (blink_cnt % 50 == 25) cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
@@ -65,6 +66,13 @@ int main() {
                 if (input->bCross) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("Cross button pressed\n");
+
+                    if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
+                        unique_send = 1;
+                        gamepad->SetLightbar({0xff, 0xff, 0xff});
+                        gamepad->SetVibration(100, 0);
+                        gamepad->UpdateOutput();
+                    }
                 } else if (input->bCircle) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
                     printf("Circle button pressed\n");
