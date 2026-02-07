@@ -127,11 +127,11 @@ parent-folder/
 
 ### 3. Export for Embedded Systems
 
-Navigate to the Gamepad-Core folder and run the export script, pointing it to your Pico project's `libs` folder:
+Navigate to the Gamepad-Core folder and run the export script, pointing it to your Pico project's `lib` folder:
 
 ```bash
 cd Gamepad-Core
-./export_micro.sh ../Pico_W-Dualsense/libs
+./export_micro.sh ../Pico_W-Dualsense/lib
 ```
 
 This script will:
