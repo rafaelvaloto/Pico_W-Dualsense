@@ -40,7 +40,6 @@ This firmware was created to **stress-test the portability** of the Gamepad-Core
 - **Stable Bluetooth Classic Connection**: Reliable pairing and connectivity with DualSense controllers
 - **Persistent Pairing**: Stores controller MAC address in Pico W's flash memory for automatic reconnection
 - **Full Input Reading**:
-  - Basic reports (`0x01`) for standard gamepad input
   - Extended reports (`0x31`) unlocking all advanced features:
     - All buttons and analog sticks
     - Gyroscope and accelerometer data
