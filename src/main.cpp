@@ -169,7 +169,8 @@ int main() {
                         gamepad->UpdateOutput();
                     }
                 } else if (input->bDpadLeft) {
-                    if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
+
+                    if (unique_send == 0) {
                         unique_send = 1;
                         BufferTrigger[0] = 0x25;
                         BufferTrigger[1] = 0x08;

@@ -30,6 +30,9 @@ This firmware was created to **stress-test the portability** of the Gamepad-Core
 
 ---
 
+### 🎥 [Click and watch the example video on YouTube.](https://www.youtube.com/watch?v=GgKDtwfS6v4)
+
+
 ## ✨ Features
 
 ### ✅ Currently Implemented
