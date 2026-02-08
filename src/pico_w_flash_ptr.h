@@ -72,7 +72,7 @@ inline void flash_clear_config() {
     uint32_t ints = save_and_disable_interrupts();
     flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
     restore_interrupts(ints);
-    printf("[FLASH] Config limpa!\n");
+    printf("[FLASH] clean keys!\n");
 }
 
 #endif //DUALSENSE_TEST_FLASH_OPERATOR_H

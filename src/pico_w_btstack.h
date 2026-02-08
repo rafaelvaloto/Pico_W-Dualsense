@@ -48,32 +48,11 @@ inline void reset_connection_state() {
     memset(current_device_addr, 0, sizeof(current_device_addr));
 }
 
-inline void enable_discovery() {
-    printf("[BT] Enabling discovery...\n");
-    gap_connectable_control(1);
-    gap_discoverable_control(1);
-
-    // Check if device is already paired
-    bd_addr_t saved_mac;
-    link_key_t saved_key;
-    if (flash_load_config(saved_mac, saved_key) && is_link_key_valid(saved_key)) {
-        // Already paired - just wait for controller connection
-        printf("[BT] Waiting reconnection from %s...\n", bd_addr_to_str(saved_mac));
-        bd_addr_copy(current_device_addr, saved_mac);
-    } else {
-        // Not paired - start active search
-        printf("[BT] Starting search for new devices...\n");
-        is_pairing = true;
-        we_initiated_connection = true;
-        gap_inquiry_start(30);
-    }
-}
-
 inline void start_pairing_inquiry() {
     printf("[BT] No saved MAC. Starting search...\n");
     printf("Put DualSense in pairing mode:\n");
     printf("  Press PS + Create for 3 seconds\n");
-    printf("  Light should blink rapidly\n\n");
+    printf("  Light should blink rapidly\n");
 
     is_pairing = true;
     we_initiated_connection = true;
@@ -216,7 +195,7 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
                     bd_addr_copy(current_device_addr, saved_mac);
                     we_initiated_connection = false;
                     gap_connectable_control(1);
-                    gap_discoverable_control(0);
+                    gap_discoverable_control(1);
                 } else {
                     start_pairing_inquiry();
                 }
@@ -269,11 +248,11 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
             hci_event_connection_request_get_bd_addr(packet, addr);
             uint32_t cod = hci_event_connection_request_get_class_of_device(packet);
 
-            printf("[HCI] Connection request from %s (CoD: 0x%06x)\n",
-                   bd_addr_to_str(addr), (unsigned int)cod);
-
             // Automatically accept gamepad connections
             if ((cod & 0x000F00) == 0x000500) {
+
+                printf("[HCI] Connection request from %s (CoD: 0x%06x)\n", bd_addr_to_str(addr), (unsigned int)cod);
+
                 bd_addr_copy(current_device_addr, addr);
                 we_initiated_connection = false;  // CONTROLLER initiated connection
                 gap_inquiry_stop();  // Stop any search in progress
@@ -288,8 +267,7 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
 
             if (status == ERROR_CODE_SUCCESS) {
                 hci_con_handle_t handle = hci_event_connection_complete_get_connection_handle(packet);
-                printf("[HCI] ACL Connection established with %s (handle: 0x%04x)\n",
-                       bd_addr_to_str(addr), handle);
+                printf("[HCI] ACL Connection established with %s (handle: 0x%04x)\n", bd_addr_to_str(addr), handle);
                 printf("[HCI] Initiator: %s\n", we_initiated_connection ? "WE" : "CONTROLLER");
                 bd_addr_copy(current_device_addr, addr);
 
@@ -297,7 +275,11 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
                 gap_request_security_level(handle, LEVEL_2);
             } else {
                 printf("[HCI] Connection failed: 0x%02x\n", status);
-                enable_discovery();
+                printf("[BT] Starting search for new devices...\n");
+                printf("[BT] No saved MAC. Starting search...\n");
+                printf("Put DualSense in pairing mode:\n");
+                printf("  Press PS + Create for 3 seconds\n");
+                printf("  Light should blink rapidly\n");
             }
             break;
         }
@@ -320,7 +302,7 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
             } else {
                 printf("[HCI] No valid Link Key. Requesting pairing...\n");
                 link_key_used = false;
-                hci_send_cmd(&hci_link_key_request_negative_reply, addr);
+                hci_send_cmd(&hci_link_key_request_reply, addr);
             }
             break;
         }
@@ -410,8 +392,15 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
             }
             uint8_t reason = packet[5];
             printf("[HCI] Disconnected. Reason: 0x%02x\n", reason);
+            printf("[BT] Starting search for new devices...\n");
+            printf("[BT] No saved MAC. Starting search...\n");
+            printf("Put DualSense in pairing mode:\n");
+            printf("  Press PS + Create for 3 seconds\n");
+            printf("  Light should blink rapidly\n");
+            is_pairing = true;
+            we_initiated_connection = true;
+            gap_inquiry_start(30);
             reset_connection_state();
-            enable_discovery();
             break;
         }
 
@@ -448,21 +437,50 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
     }
 }
 
+
+inline void enable_discovery() {
+    printf("[BT] Enabling discovery...\n");
+    gap_connectable_control(1);
+    gap_discoverable_control(1);
+
+    // Check if device is already paired
+    bd_addr_t saved_mac;
+    link_key_t saved_key;
+    if (flash_load_config(saved_mac, saved_key) && is_link_key_valid(saved_key)) {
+        // Already paired - just wait for controller connection
+        printf("[BT] Waiting reconnection from %s...\n", bd_addr_to_str(saved_mac));
+        bd_addr_copy(current_device_addr, saved_mac);
+
+        gap_connectable_control(1);
+        gap_set_local_name("Gamepad-Core Host"); // Opcional, mas ajuda
+
+        l2cap_register_service(&l2cap_packet_handler, 0x0011, 672, LEVEL_2); // HID Control
+        l2cap_register_service(&l2cap_packet_handler, 0x0013, 672, LEVEL_2); // HID Interrupt
+    } else {
+        // Not paired - start active search
+        printf("[BT] Starting search for new devices...\n");
+        printf("[BT] No saved MAC. Starting search...\n");
+        printf("Put DualSense in pairing mode:\n");
+        printf("  Press PS + Create for 3 seconds\n");
+        printf("  Light should blink rapidly\n");
+        is_pairing = true;
+        we_initiated_connection = true;
+        gap_inquiry_start(30);
+    }
+}
+
+
 static void init_bluetooth() {
     printf("[BT] Initializing Bluetooth Stack...\n");
-    reset_connection_state();
     l2cap_init();
+
+    gap_set_local_name("Gamepad-Core Host");
 
     // SSP (Secure Simple Pairing)
     gap_ssp_set_enable(true);
     gap_secure_connections_enable(true);
     gap_ssp_set_io_capability(SSP_IO_CAPABILITY_DISPLAY_YES_NO);
     gap_ssp_set_authentication_requirement(SSP_IO_AUTHREQ_MITM_PROTECTION_NOT_REQUIRED_GENERAL_BONDING);
-
-    // Register L2CAP services to accept incoming connections
-    // l2cap_register_service(&l2cap_packet_handler, PSM_HID_INTERRUPT, 150, LEVEL_2);
-    // l2cap_register_service(&l2cap_packet_handler, PSM_HID_CONTROL, 150, LEVEL_2);
-
     // Allow connections
     gap_connectable_control(1);
     gap_discoverable_control(1);
@@ -475,6 +493,6 @@ static void init_bluetooth() {
     l2cap_add_event_handler(&l2cap_event_callback);
 
     printf("[BT] Turning on radio...\n");
-    gap_set_allow_role_switch(HCI_ROLE_MASTER);
+    // gap_set_allow_role_switch(HCI_ROLE_MASTER);
     hci_power_control(HCI_POWER_ON);
 }

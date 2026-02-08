@@ -186,6 +186,13 @@ int main() {
                         gamepad->GetIGamepadTrigger()->SetCustomTrigger(EDSGamepadHand::Right, BufferTrigger);
                         gamepad->UpdateOutput();
                     }
+                } else if (input->bDpadRight) {
+                    if (unique_send == 0) {
+                        unique_send = 1;
+                        printf("Trigger R: AutomaticGun (0x26)\n");
+                        gamepad->GetIGamepadTrigger()->SetMachineGun26(0xed, 0x03, 0x02, 0x09, EDSGamepadHand::Right);
+                        gamepad->UpdateOutput();
+                    }
                 } else if (input->bDpadDown) {
                     if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
                         unique_send = 1;
