@@ -283,18 +283,6 @@ Library processing (PlugAndPlay and Updates) occurs in the main loop, ensuring o
 
 ## 🔬 Technical Details
 
-### Memory Usage
-The firmware is optimized for the Pico W's limited resources:
-- Small memory footprint thanks to Gamepad-Core's efficient design
-- Flash storage for persistent pairing data
-- No dynamic memory allocation in critical paths
-
-### Performance
-- Low latency input reading (~1-2ms polling)
-- Stable Bluetooth connection with minimal packet loss
-- Non-blocking architecture prevents stalling
-- Output feature latency: ~8-16ms (Bluetooth Classic limitation)
-
 ### Supported DualSense Features
 
 | Feature | Status |
