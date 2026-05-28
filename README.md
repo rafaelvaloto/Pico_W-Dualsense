@@ -15,6 +15,9 @@
 
 ---
 
+> [!IMPORTANT]
+> This library is just an example of a project on how to integrate the gamepad-core middleware into embedded systems. If you are looking for a final implementation with audio haptics, please visit [awalol/DS5Dongle](https://github.com/awalol/DS5Dongle).
+
 ## 🚀 Project Overview
 
 This project is a **C/C++ firmware** for the **Raspberry Pi Pico W** that establishes a full-featured **Bluetooth Classic connection** with the **Sony DualSense (PS5)** controller. It demonstrates the extreme portability of the **[Gamepad-Core](https://github.com/rafaelvaloto/Gamepad-Core)** library by running the same cross-platform API that powers high-end game engines (Unreal Engine, Godot, O3DE) on a resource-constrained microcontroller.
