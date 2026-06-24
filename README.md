@@ -11,12 +11,14 @@
 
 **C++ • BTstack • Gamepad-Core**
 
+# b-Run game On Steam
+b-Run is the first game released with native, full support for DualSense controller audio features via Bluetooth; Immerse yourself in a claustrophobic first-person horror experience. Navigate through dark ruins and narrow corridors where tension is constant.
+
+https://store.steampowered.com/app/4798010/bRun/
+
 </div>
 
 ---
-> [!IMPORTANT]
-> https://store.steampowered.com/app/4798010/bRun/
-
 
 > [!IMPORTANT]
 > This library is just an example of a project on how to integrate the gamepad-core middleware into embedded systems. If you are looking for a final implementation with audio haptics, please visit [awalol/DS5Dongle](https://github.com/awalol/DS5Dongle).
