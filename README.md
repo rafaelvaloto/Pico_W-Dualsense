@@ -11,10 +11,6 @@
 
 **C++ • BTstack • Gamepad-Core**
 
-# b-Run game On Steam
-b-Run is the first game released with native, full support for DualSense controller audio features via Bluetooth; Immerse yourself in a claustrophobic first-person horror experience. Navigate through dark ruins and narrow corridors where tension is constant.
-
-https://store.steampowered.com/app/4798010/bRun/
 
 </div>
 
@@ -185,6 +181,29 @@ make
 4. The Pico will automatically reboot and start running the firmware
 
 ---
+
+## 7. Serial Debugging and Monitoring
+
+To inspect the Pico W log output and debug DualSense readings in real-time on Linux, you can use `minicom` connected to the USB serial port.
+
+Install `minicom` (if not already installed):
+
+```bash
+sudo apt install minicom
+```
+
+With the Pico W running the firmware and connected via USB, execute the following command (the default Pico SDK baud rate is 115200):
+
+```bash
+sudo minicom -b 115200 -D /dev/ttyACM0
+```
+
+*Note: The exact port may vary depending on your system configuration or connection order. To find the correct port, you can use the command `ls /dev/ttyACM*`.*
+
+**Useful Minicom Shortcuts:**
+* **Exit:** Press `Ctrl+A`, release, press `X`, and select Yes.
+* **Clear screen:** Press `Ctrl+A`, release, press `C`.
+
 
 ## 📖 How It Works
 
