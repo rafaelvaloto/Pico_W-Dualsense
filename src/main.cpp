@@ -6,10 +6,9 @@
 
 // GamepadCore headers
 #include "pico_w_btstack.h"
-#include "GCore/Interfaces/IPlatformHardwareInfo.h"
+#include "GCore/Interfaces/IPlatformHardware.h"
 #include "GCore/Templates/TBasicDeviceRegistry.h"
 #include "pico_w_platform.h"
-#include "GCore/Interfaces/ISonyGamepad.h"
 using pico_platform = GamepadCore::TGenericHardwareInfo<pico_w_platform_policy>;
 
 inline void initialize_device() {
@@ -61,7 +60,7 @@ int main() {
     printf("========================================\n");
 
     auto HardwareInfo = std::make_unique<pico_platform>();
-    IPlatformHardwareInfo::SetInstance(std::move(HardwareInfo));
+    IPlatformHardware::SetInstance(std::move(HardwareInfo));
     printf("Hardware initialized OK\n");
 
     using namespace policy_device;
@@ -83,8 +82,13 @@ int main() {
         if (auto* gamepad = registry.GetLibrary(0)) {
             if (gamepad->IsConnected()) {
                 // enable touchpad and sensors, gyro and accelerometer, can be used to control mouse cursor or for motion controls in games
-                gamepad->EnableTouch(true);
-                gamepad->EnableMotionSensor(false);
+                if (auto* sensors = gamepad->GetIGamepadSensors()) {
+                    sensors->EnableMotionSensor(false);
+                }
+
+                if (auto* touch = gamepad->GetIGamepadTouch()) {
+                    touch->EnableTouch(true);
+                }
 
                 gamepad->UpdateInput(0.016f); // Update input state, should be called every frame with the time delta since last call
 
@@ -97,12 +101,20 @@ int main() {
 
                         printf("Resetting bluetooth features...\n");
                         gamepad->GetMutableDeviceContext()->Output.Feature = {0xFF, 0xFF, 0x00, 0x00};
-                        gamepad->SetLightbar({0, 0, 0, 0});
+
+                        if (auto* lightbar = gamepad->GetIGamepadLightbar()) {
+                            lightbar->SetLightbar({0, 0, 0, 0});
+                        }
+
                         gamepad->UpdateOutput();
                         sleep_ms(400);
                         gamepad->GetMutableDeviceContext()->Output.Feature = {0x57, 0xFF, 0x00, 0x00};
-                        gamepad->SetLightbar({255, 255, 255, 0});
-                        gamepad->SetPlayerLed(EDSPlayer::One, 0xff);
+
+                        if (auto* lightbar = gamepad->GetIGamepadLightbar()) {
+                            lightbar->SetLightbar({255, 255, 255, 0});
+                            lightbar->SetPlayerLed(EDSPlayer::One, 0xff);
+                        }
+
                         gamepad->UpdateOutput();
                         sleep_ms(400);
                     }
@@ -114,8 +126,14 @@ int main() {
                     printf("Cross button pressed\n");
                     if (unique_send == 0) {
                         unique_send = 1;
-                        gamepad->SetLightbar({0xff, 0, 0, 0});
-                        gamepad->SetVibration(100, 0);
+                        if (auto* lightbar = gamepad->GetIGamepadLightbar()) {
+                            lightbar->SetLightbar({0xff, 0, 0, 0});
+                        }
+
+                        if (auto* rumble = gamepad->GetIGamepadRumbles()) {
+                            rumble->SetVibration(100, 0);
+                        }
+
                         gamepad->UpdateOutput();
                     }
                 } else if (input->bCircle) {
@@ -124,8 +142,14 @@ int main() {
 
                     if (unique_send == 0) {
                         unique_send = 1;
-                        gamepad->SetLightbar({0xff, 0xff, 0, 0});
-                        gamepad->SetVibration(0, 50);
+
+                        if (auto* lightbar = gamepad->GetIGamepadLightbar()) {
+                            lightbar->SetLightbar({0xff, 0xff, 0, 0});
+                        }
+
+                        if (auto* rumble = gamepad->GetIGamepadRumbles()) {
+                            rumble->SetVibration(0, 50);
+                        }
                         gamepad->UpdateOutput();
                     }
                 } else if (input->bSquare) {
@@ -134,7 +158,9 @@ int main() {
                     printf("Trigger R: GameCube (0x02)\n");
                     if (unique_send == 0) {
                         unique_send = 1;
-                        gamepad->GetIGamepadTrigger()->SetGameCube(EDSGamepadHand::Right);
+                        if (auto* trigger = gamepad->GetIGamepadTrigger()) {
+                            trigger->SetGameCube(EDSGamepadHand::Right);
+                        }
                         gamepad->UpdateOutput();
                     }
                 } else if (input->bTriangle) {
@@ -143,8 +169,12 @@ int main() {
 
                     if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
                         unique_send = 1;
-                        gamepad->SetLightbar({0, 255, 0});
-                        gamepad->GetIGamepadTrigger()->StopTrigger(EDSGamepadHand::AnyHand);
+                        if (auto* lightbar = gamepad->GetIGamepadLightbar()) {
+                            lightbar->SetLightbar({0, 255, 0, 0});
+                        }
+                        if (auto* trigger = gamepad->GetIGamepadTrigger()) {
+                            trigger->StopTrigger(EDSGamepadHand::AnyHand);
+                        }
                         gamepad->UpdateOutput();
                     }
                 }  else if (input->bLeftShoulder) {
@@ -165,8 +195,11 @@ int main() {
                         BufferTrigger[9] = 0x00;
 
                         printf("Trigger L: Gallop (0x23)\n");
-                        gamepad->GetIGamepadTrigger()->SetCustomTrigger(EDSGamepadHand::Left, BufferTrigger);
-                        gamepad->UpdateOutput();
+                        if (auto* trigger = gamepad->GetIGamepadTrigger()) {
+                            trigger->SetCustomTrigger(EDSGamepadHand::Left, BufferTrigger);
+                            gamepad->UpdateOutput();
+                        }
+
                     }
                 } else if (input->bDpadLeft) {
 
@@ -184,15 +217,20 @@ int main() {
                         BufferTrigger[9] = 0x00;
                         printf("Trigger R: Weapon (0x25)\n");
 
-                        gamepad->GetIGamepadTrigger()->SetCustomTrigger(EDSGamepadHand::Right, BufferTrigger);
-                        gamepad->UpdateOutput();
+                        if (auto* trigger = gamepad->GetIGamepadTrigger()) {
+                            trigger->SetCustomTrigger(EDSGamepadHand::Right, BufferTrigger);
+                            gamepad->UpdateOutput();
+                        }
+
                     }
                 } else if (input->bDpadRight) {
                     if (unique_send == 0) {
                         unique_send = 1;
                         printf("Trigger R: AutomaticGun (0x26)\n");
-                        gamepad->GetIGamepadTrigger()->SetMachineGun26(0xed, 0x03, 0x02, 0x09, EDSGamepadHand::Right);
-                        gamepad->UpdateOutput();
+                        if (auto* trigger = gamepad->GetIGamepadTrigger()) {
+                            trigger->SetMachineGun26(0xed, 0x03, 0x02, 0x09, EDSGamepadHand::Right);
+                            gamepad->UpdateOutput();
+                        }
                     }
                 } else if (input->bDpadDown) {
                     if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
@@ -209,8 +247,10 @@ int main() {
                         BufferTrigger[9] = 0x00;
                         printf("Trigger R: Bow (0x22)\n");
 
-                        gamepad->GetIGamepadTrigger()->SetCustomTrigger(EDSGamepadHand::Right, BufferTrigger);
-                        gamepad->UpdateOutput();
+                        if (auto* trigger = gamepad->GetIGamepadTrigger()) {
+                            trigger->SetCustomTrigger(EDSGamepadHand::Right, BufferTrigger);
+                            gamepad->UpdateOutput();
+                        }
                     }
                 } else if (input->bDpadUp) {
                     if (unique_send == 0) { // l2cap_send to set lightbar to white and vibrate
@@ -227,9 +267,10 @@ int main() {
                         BufferTrigger[9] = 0x00;
 
                         printf("Trigger L: feedback (0x21)\n");
-
-                        gamepad->GetIGamepadTrigger()->SetCustomTrigger(EDSGamepadHand::Left, BufferTrigger);
-                        gamepad->UpdateOutput();
+                        if (auto* trigger = gamepad->GetIGamepadTrigger()) {
+                            trigger->SetCustomTrigger(EDSGamepadHand::Left, BufferTrigger);
+                            gamepad->UpdateOutput();
+                        }
                     }
                 } else if (input->bRightShoulder) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
@@ -249,8 +290,10 @@ int main() {
                         BufferTrigger[9] = 0x00;
 
                         printf("Trigger R: Machine (0x27)\n");
-                        gamepad->GetIGamepadTrigger()->SetCustomTrigger(EDSGamepadHand::Right, BufferTrigger);
-                        gamepad->UpdateOutput();
+                        if (auto* trigger = gamepad->GetIGamepadTrigger()) {
+                            trigger->SetCustomTrigger(EDSGamepadHand::Right, BufferTrigger);
+                            gamepad->UpdateOutput();
+                        }
                     }
                 } else if (input->bLeftStick) {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
@@ -273,7 +316,9 @@ int main() {
 
             if (blink_cnt % 50 == 25) {
                 unique_send = 0;
-                gamepad->SetVibration(0, 0);
+                if (auto* rumble = gamepad->GetIGamepadRumbles()) {
+                    rumble->SetVibration(0, 0);
+                }
             }
         }
 

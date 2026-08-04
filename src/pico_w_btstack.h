@@ -3,7 +3,7 @@
 // Created by rafaelvaloto on 04/02/2026.
 //
 #pragma once
-#include "GCore/Interfaces/ISonyGamepad.h"
+#include "GCore/Interfaces/Segregations/IGamepadBase.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -67,7 +67,7 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
             response_report = 1;
 
             auto& registry = get_instance();
-            if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+            if (IGamepadBase* gamepad = registry.GetLibrary(0)) {
                 FDeviceContext* context = gamepad->GetMutableDeviceContext();
                 memcpy(context->Buffer, &packet[1], 78);
                 context->IsConnected = true;
@@ -75,7 +75,7 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
 
         } else if (size > 11 && response_report == 1) {
             auto& registry = get_instance();
-            if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+            if (IGamepadBase* gamepad = registry.GetLibrary(0)) {
                 FDeviceContext* context = gamepad->GetMutableDeviceContext();
                 memcpy(context->Buffer, &packet[1], 78);
             }
@@ -122,7 +122,7 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
 
                 using namespace policy_device;
                 auto& registry = get_instance();
-                if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+                if (IGamepadBase* gamepad = registry.GetLibrary(0)) {
                     FDeviceContext* context = gamepad->GetMutableDeviceContext();
                     using namespace FGamepadSensors;
                     FGamepadCalibration OutCalibration;
@@ -163,7 +163,7 @@ inline void l2cap_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t 
 
             using namespace policy_device;
             auto& registry = get_instance();
-            if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+            if (IGamepadBase* gamepad = registry.GetLibrary(0)) {
                 FDeviceContext* context = gamepad->GetMutableDeviceContext();
                 context->IsConnected = false;
             }
@@ -302,7 +302,7 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
             } else {
                 printf("[HCI] No valid Link Key. Requesting pairing...\n");
                 link_key_used = false;
-                hci_send_cmd(&hci_link_key_request_reply, addr);
+                hci_send_cmd(&hci_link_key_request_negative_reply, addr);
             }
             break;
         }
@@ -348,7 +348,7 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
         case HCI_EVENT_PIN_CODE_REQUEST: {
             bd_addr_t addr;
             hci_event_pin_code_request_get_bd_addr(packet, addr);
-            printf("[HCI] PIN requested. Sending 0002...\n");
+            printf("[HCI] PIN requested. Sending 0000...\n");
             hci_send_cmd(&hci_pin_code_request_reply, addr, 4, "0000");
             break;
         }
@@ -386,7 +386,7 @@ inline void hci_packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *p
         case HCI_EVENT_DISCONNECTION_COMPLETE: {
             using namespace policy_device;
             auto& registry = get_instance();
-            if (ISonyGamepad* gamepad = registry.GetLibrary(0)) {
+            if (IGamepadBase* gamepad = registry.GetLibrary(0)) {
                 FDeviceContext* context = gamepad->GetMutableDeviceContext();
                 context->IsConnected = false;
             }
