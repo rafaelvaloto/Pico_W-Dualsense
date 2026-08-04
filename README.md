@@ -111,7 +111,7 @@ The firmware includes a comprehensive test suite demonstrating all DualSense fea
 
 ```bash
 git clone https://github.com/rafaelvaloto/Pico_W-Dualsense.git
-cd Pico_W-Dualsense
+cd Pico_W-Dualsense && mkdir -p lib/Gamepad-Core
 ```
 
 ### 2. Download Gamepad-Core (Minimalist Version)
@@ -137,7 +137,7 @@ Navigate to the Gamepad-Core folder and run the export script, pointing it to yo
 
 ```bash
 cd Gamepad-Core
-./export_micro.sh ../Pico_W-Dualsense/lib
+./export_micro.sh ../Pico_W-Dualsense/lib/Gamepad-Core
 ```
 
 This script will:
