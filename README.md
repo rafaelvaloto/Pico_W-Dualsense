@@ -17,7 +17,9 @@
 ---
 
 > [!IMPORTANT]
-> This library is just an example of a project on how to integrate the gamepad-core middleware into embedded systems. If you are looking for a final implementation with audio haptics, please visit [awalol/DS5Dongle](https://github.com/awalol/DS5Dongle).
+> Transform your browser into a real-time haptic feedback router. This tool captures live game audio via Screen Share and translates it into high-fidelity haptics via
+> Bluetooth for PlayStation DualSense controllers—no cables or custom dongles required!
+> https://rafaelvaloto.github.io/DS5-Web-Audio-Haptics/testes/index.html
 
 ## 🚀 Project Overview
 
